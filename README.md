@@ -92,6 +92,93 @@ SYS_RUN(led_control);
 
 ---
 
+### 3. 三灯同步闪烁 — `23001010613_lsl_LiSonglun_blueled_blink`
+
+**目录**：`23001010613_lsl_LiSonglun_blueled_blink/`
+
+**实验目的**：在多路 GPIO 控制基础上，实现三个 LED 灯同步闪烁。
+
+**实验内容**：
+- 同时初始化 GPIO_10（红）、GPIO_11（绿）、GPIO_12（黄）三路引脚为输出模式
+- 三灯同步点亮 / 同步熄灭，延时 1 s（`osDelay(100)`，单位 10 ms）
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `23001010613_lsl_LiSonglun_blueled_blink.c` | 主程序，三路 GPIO 同步控制 |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+#define DELAY_MS 100  // 100*10ms = 1s
+
+while (1) {
+    // 三灯同时点亮
+    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(11, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(12, IOT_GPIO_VALUE1);
+    osDelay(DELAY_MS);
+
+    // 三灯同时熄灭
+    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(11, IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(12, IOT_GPIO_VALUE0);
+    osDelay(DELAY_MS);
+}
+```
+
+**硬件连接**：红灯接 GPIO_10，绿灯接 GPIO_11，黄灯接 GPIO_12，负极均接 GND。
+
+---
+
+### 4. 交通灯模拟 — `23001010613_lsl_LiSonglun_ledblink`
+
+**目录**：`23001010613_lsl_LiSonglun_ledblink/`
+
+**实验目的**：综合运用多路 GPIO 控制，模拟交通灯红→绿→黄循环切换逻辑。
+
+**实验内容**：
+- 初始化 GPIO_10（红）、GPIO_11（绿）、GPIO_12（黄）三路引脚为输出模式
+- 依次循环：红灯亮 3 s → 绿灯亮 3 s → 黄灯亮 3 s
+- 每次切换时保证其余两灯熄灭，实现互斥点亮
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `23001010613_lsl_LiSonglun_ledblink.c` | 主程序，交通灯顺序切换逻辑 |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+#define DELAY_MS 300  // 300*10ms = 3s
+
+while (1) {
+    // 红亮，绿灭，黄灭
+    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(11, IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(12, IOT_GPIO_VALUE0);
+    osDelay(DELAY_MS);
+
+    // 红灭，绿亮，黄灭
+    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(11, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(12, IOT_GPIO_VALUE0);
+    osDelay(DELAY_MS);
+
+    // 红灭，绿灭，黄亮
+    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(11, IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(12, IOT_GPIO_VALUE1);
+    osDelay(DELAY_MS);
+}
+```
+
+**硬件连接**：红灯接 GPIO_10，绿灯接 GPIO_11，黄灯接 GPIO_12，负极均接 GND。
+
+---
+
 ## 工程构建说明
 
 根目录 `BUILD.gn` 用于选择当前激活的实验项目，修改 `features` 字段即可切换：
@@ -99,9 +186,11 @@ SYS_RUN(led_control);
 ```gn
 lite_component("app") {
     features = [
-        # 切换到 Hello World 实验时取消注释下一行，并注释 ledcontrol 行
+        # 按需取消注释其中一行以切换实验
         # "lsl613_helloworld:lsl613_helloworld",
-        "lsl613_ledcontrol:lsl613_ledcontrol",
+        # "lsl613_ledcontrol:lsl613_ledcontrol",
+        # "23001010613_lsl_LiSonglun_blueled_blink:23001010613_lsl_LiSonglun_blueled_blink",
+        "23001010613_lsl_LiSonglun_ledblink:23001010613_lsl_LiSonglun_ledblink",
     ]
 }
 ```
@@ -113,7 +202,7 @@ lite_component("app") {
 ## 作者
 
 - **姓名**：李松伦
-- **学号**：lsl23001010613
+- **学号**：23001010613
 - **课程**：鸿蒙系统开发
 
 ---
