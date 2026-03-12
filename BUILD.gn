@@ -11,11 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+
 import("//build/lite/config/component/lite_component.gni")
 
 lite_component("app") {
     features = [
         #"startup",
-        "lsl613_ledcontrol:lsl613_ledcontrol",
+        #"lsl613_ledcontrol:lsl613_ledcontrol",
+        #"23001010613_lsl_LiSonglun_blueled_blink:23001010613_lsl_LiSonglun_blueled_blink",
+        "23001010613_lsl_LiSonglun_ledblink:23001010613_lsl_LiSonglun_ledblink",
     ]
 }

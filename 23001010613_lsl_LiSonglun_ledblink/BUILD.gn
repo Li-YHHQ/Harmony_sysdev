@@ -1,0 +1,9 @@
+static_library("23001010613_lsl_LiSonglun_ledblink") {
+    sources = [
+        "23001010613_lsl_LiSonglun_ledblink.c"
+    ]
+    include_dirs = [
+        "//utils/native/lite/include",
+        "//base/iot_hardware/peripheral/interfaces/kits",
+    ]
+}

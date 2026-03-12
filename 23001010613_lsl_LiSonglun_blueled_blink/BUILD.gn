@@ -1,0 +1,9 @@
+static_library("23001010613_lsl_LiSonglun_blueled_blink") {
+    sources = [
+        "23001010613_lsl_LiSonglun_blueled_blink.c"
+    ]
+    include_dirs = [
+        "//utils/native/lite/include",
+        "//base/iot_hardware/peripheral/interfaces/kits",
+    ]
+}
