@@ -1,0 +1,8 @@
+static_library("lsl613_helloworld") {
+    sources = [
+        "lsl613_helloworld.c"
+    ]
+    include_dirs = [
+        "//utils/native/lite/include"
+    ]
+}

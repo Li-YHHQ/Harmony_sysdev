@@ -1,0 +1,12 @@
+static_library("lsl613_ledcontrol") {
+    sources = [
+        "hal_iot_gpio_ex.c",
+        "lsl613_ledcontrol.c",
+    ]
+    include_dirs = [
+        "./",
+        "//utils/native/lite/include",
+        "//kernel/liteos_m/kal/cmsis",
+        "//base/iot_hardware/peripheral/interfaces/kits",
+    ]
+}
