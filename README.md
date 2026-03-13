@@ -114,14 +114,11 @@ SYS_RUN(led_control);
 #define DELAY_MS 100  // 100*10ms = 1s
 
 while (1) {
-    // 三灯同时点亮
-    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE1); // 三灯同时点亮
     IoTGpioSetOutputVal(11, IOT_GPIO_VALUE1);
     IoTGpioSetOutputVal(12, IOT_GPIO_VALUE1);
     osDelay(DELAY_MS);
-
-    // 三灯同时熄灭
-    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE0); // 三灯同时熄灭
     IoTGpioSetOutputVal(11, IOT_GPIO_VALUE0);
     IoTGpioSetOutputVal(12, IOT_GPIO_VALUE0);
     osDelay(DELAY_MS);
@@ -155,22 +152,19 @@ while (1) {
 #define DELAY_MS 300  // 300*10ms = 3s
 
 while (1) {
-    // 红亮，绿灭，黄灭
-    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(10, IOT_GPIO_VALUE1); // 红亮
     IoTGpioSetOutputVal(11, IOT_GPIO_VALUE0);
     IoTGpioSetOutputVal(12, IOT_GPIO_VALUE0);
     osDelay(DELAY_MS);
 
-    // 红灭，绿亮，黄灭
     IoTGpioSetOutputVal(10, IOT_GPIO_VALUE0);
-    IoTGpioSetOutputVal(11, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(11, IOT_GPIO_VALUE1); // 绿亮
     IoTGpioSetOutputVal(12, IOT_GPIO_VALUE0);
     osDelay(DELAY_MS);
 
-    // 红灭，绿灭，黄亮
     IoTGpioSetOutputVal(10, IOT_GPIO_VALUE0);
     IoTGpioSetOutputVal(11, IOT_GPIO_VALUE0);
-    IoTGpioSetOutputVal(12, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(12, IOT_GPIO_VALUE1); // 黄亮
     osDelay(DELAY_MS);
 }
 ```
@@ -179,18 +173,135 @@ while (1) {
 
 ---
 
+### 5. 行人过街灯 — `23001010613_lsl_LiSonglun_pedestrian`
+
+**目录**：`23001010613_lsl_LiSonglun_pedestrian/`
+
+**实验目的**：模拟真实行人过街灯时序，掌握多阶段 GPIO 控制与绿灯快闪提示的实现方法。
+
+**实验内容**：行人过街灯按以下四阶段循环运行：
+
+| 阶段 | 状态 | 时长 | 说明 |
+|------|------|------|------|
+| 1 | 绿灯长亮 | 3 s | 行人通行 |
+| 2 | 绿灯快闪 3 次 | 约 0.6 s | 提示即将禁行 |
+| 3 | 黄灯长亮 | 2 s | 过渡警示 |
+| 4 | 红灯长亮 | 3 s | 禁止通行 |
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `23001010613_lsl_LiSonglun_pedestrian.c` | 主程序，四阶段过街灯逻辑 |
+| `iot_gpio_ex.h` | GPIO 引脚功能枚举及接口声明 |
+| `hal_iot_gpio_ex.c` | GPIO 扩展功能硬件抽象层实现 |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+while (1) {
+    // 阶段1：绿灯亮 3s
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_11, IOT_GPIO_VALUE1);
+    osDelay(300);
+
+    // 阶段2：绿灯快闪 3 次
+    for (int i = 0; i < 3; i++) {
+        IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_11, IOT_GPIO_VALUE0);
+        osDelay(30);
+        IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_11, IOT_GPIO_VALUE1);
+        osDelay(30);
+    }
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_11, IOT_GPIO_VALUE0);
+
+    // 阶段3：黄灯亮 2s
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_12, IOT_GPIO_VALUE1);
+    osDelay(200);
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_12, IOT_GPIO_VALUE0);
+
+    // 阶段4：红灯亮 3s
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_10, IOT_GPIO_VALUE1);
+    osDelay(300);
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_10, IOT_GPIO_VALUE0);
+}
+```
+
+**硬件连接**：红灯接 GPIO_10，绿灯接 GPIO_11，黄灯接 GPIO_12，负极均接 GND。
+
+---
+
+### 6. 设备自检 — `23001010613_lsl_LiSonglun_selfcheck`
+
+**目录**：`23001010613_lsl_LiSonglun_selfcheck/`
+
+**实验目的**：利用 LED 灯直观呈现设备上电自检流程，模拟嵌入式设备 Flash 存储与 Wi-Fi 芯片的检测过程。
+
+**实验内容**：设备上电后按以下顺序执行一次性自检，完成后进入就绪状态：
+
+| 阶段 | 状态 | 时长 | 说明 |
+|------|------|------|------|
+| 1 | 红灯亮 | 2 s | 模拟检测 Flash 存储 |
+| 2 | 黄灯亮 | 2 s | 模拟检测 Wi-Fi 芯片 |
+| 3 | 三灯快闪 3 次 | 约 0.3 s | 自检通过提示 |
+| 4 | 绿灯长亮 | 持续 | 设备进入就绪状态 |
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `23001010613_lsl_LiSonglun_selfcheck.c` | 主程序，上电自检逻辑 |
+| `iot_gpio_ex.h` | GPIO 引脚功能枚举及接口声明 |
+| `hal_iot_gpio_ex.c` | GPIO 扩展功能硬件抽象层实现 |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+// 检测 Flash（红灯）
+printf("Checking Flash...\n");
+IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_10, IOT_GPIO_VALUE1);
+osDelay(200);
+IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_10, IOT_GPIO_VALUE0);
+
+// 检测 Wi-Fi（黄灯）
+printf("Checking Wi-Fi...\n");
+IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_12, IOT_GPIO_VALUE1);
+osDelay(200);
+IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_12, IOT_GPIO_VALUE0);
+
+// 自检通过（三灯快闪）
+printf("Self-Check Passed!\n");
+for (int i = 0; i < 3; i++) {
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_10, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_11, IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_12, IOT_GPIO_VALUE1);
+    osDelay(50);
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_10, IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_11, IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_12, IOT_GPIO_VALUE0);
+    osDelay(50);
+}
+
+// 就绪（绿灯常亮）
+printf("Device Ready!\n");
+IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_11, IOT_GPIO_VALUE1);
+```
+
+**硬件连接**：红灯接 GPIO_10，绿灯接 GPIO_11，黄灯接 GPIO_12，负极均接 GND。
+
+---
+
 ## 工程构建说明
 
-根目录 `BUILD.gn` 用于选择当前激活的实验项目，修改 `features` 字段即可切换：
+根目录 `BUILD.gn` 用于选择当前激活的实验项目，取消对应行的注释即可切换：
 
 ```gn
 lite_component("app") {
     features = [
-        # 按需取消注释其中一行以切换实验
         # "lsl613_helloworld:lsl613_helloworld",
         # "lsl613_ledcontrol:lsl613_ledcontrol",
         # "23001010613_lsl_LiSonglun_blueled_blink:23001010613_lsl_LiSonglun_blueled_blink",
-        "23001010613_lsl_LiSonglun_ledblink:23001010613_lsl_LiSonglun_ledblink",
+        # "23001010613_lsl_LiSonglun_ledblink:23001010613_lsl_LiSonglun_ledblink",
+        # "23001010613_lsl_LiSonglun_pedestrian:23001010613_lsl_LiSonglun_pedestrian",
+        "23001010613_lsl_LiSonglun_selfcheck:23001010613_lsl_LiSonglun_selfcheck",
     ]
 }
 ```
