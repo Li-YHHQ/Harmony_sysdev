@@ -20,6 +20,8 @@ lite_component("app") {
         #"startup",
         #"lsl613_ledcontrol:lsl613_ledcontrol",
         #"23001010613_lsl_LiSonglun_blueled_blink:23001010613_lsl_LiSonglun_blueled_blink",
-        "23001010613_lsl_LiSonglun_ledblink:23001010613_lsl_LiSonglun_ledblink",
+        #"23001010613_lsl_LiSonglun_ledblink:23001010613_lsl_LiSonglun_ledblink",
+        #"23001010613_lsl_LiSonglun_pedestrian:23001010613_lsl_LiSonglun_pedestrian",
+        "23001010613_lsl_LiSonglun_selfcheck:23001010613_lsl_LiSonglun_selfcheck",
     ]
 }
