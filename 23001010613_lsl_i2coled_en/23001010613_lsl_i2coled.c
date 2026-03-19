@@ -19,6 +19,9 @@ static void i2c_oled_control(void *arg)
     IoSetFunc(IOT_IO_NAME_GPIO_13, IOT_IO_FUNC_GPIO_13_I2C0_SDA);
     // 设置GPIO_14的复用功能为i2c scl
     IoSetFunc(IOT_IO_NAME_GPIO_14, IOT_IO_FUNC_GPIO_14_I2C0_SCL);
+    // 使能I2C总线内部上拉（SDA/SCL必须有上拉，否则总线无法正常通信）
+    IoSetPull(IOT_IO_NAME_GPIO_13, IOT_IO_PULL_UP);
+    IoSetPull(IOT_IO_NAME_GPIO_14, IOT_IO_PULL_UP);
     // 设置波特率
     hi_i2c_init(HI_I2C_IDX_0, OLED_I2C_BAUDRATE);
     // 等待0.02秒
