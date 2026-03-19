@@ -80,7 +80,7 @@ void ssd1306_WriteData(uint8_t* buffer, size_t buff_size) {
         data[i*2+1] = buffer[i];
     }
     data[(buff_size - 1) * 2] = SSD1306_CTRL_DATA;
-    ssd1306_SendData(data, sizeof(data));
+    ssd1306_SendData(data, buff_size * 2);
 }
 
 #elif defined(SSD1306_USE_SPI)
