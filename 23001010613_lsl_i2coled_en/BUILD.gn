@@ -1,0 +1,17 @@
+static_library("i2coled") {
+    sources = [
+        "23001010613_lsl_i2coled.c",
+        "hal_iot_gpio_ex.c",
+        "ssd1306/ssd1306.c",
+        "ssd1306/ssd1306_fonts.c",
+    ]
+
+    include_dirs = [
+        ".",
+        "./ssd1306",
+        "//utils/native/lite/include",
+        "//kernel/liteos_m/components/cmsis/2.0",
+        "//base/iot_hardware/peripheral/interfaces/kits",
+        "//device/hisilicon/hispark_pegasus/sdk_liteos/include",
+    ]
+}

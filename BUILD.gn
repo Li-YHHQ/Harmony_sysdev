@@ -22,6 +22,7 @@ lite_component("app") {
         #"23001010613_lsl_LiSonglun_blueled_blink:23001010613_lsl_LiSonglun_blueled_blink",
         #"23001010613_lsl_LiSonglun_ledblink:23001010613_lsl_LiSonglun_ledblink",
         #"23001010613_lsl_LiSonglun_pedestrian:23001010613_lsl_LiSonglun_pedestrian",
-        "23001010613_lsl_LiSonglun_selfcheck:23001010613_lsl_LiSonglun_selfcheck",
+        #"23001010613_lsl_LiSonglun_selfcheck:23001010613_lsl_LiSonglun_selfcheck",
+        "23001010613_lsl_i2coled_en:i2coled",
     ]
 }
