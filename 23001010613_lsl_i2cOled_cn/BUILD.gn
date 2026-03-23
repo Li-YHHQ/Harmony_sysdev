@@ -1,0 +1,17 @@
+static_library("i2cOled_cn") {
+    sources = [
+        "23001010613_lsl_i2cOled_cn.c",
+        "hal_iot_gpio_ex.c",
+    ]
+    include_dirs = [
+        "./",
+        "./ssd1306",
+        "//utils/native/lite/include",
+        "//kernel/liteos_m/kal/cmsis",
+        "//base/iot_hardware/peripheral/interfaces/kits",
+        "//foundation/communication/wifi_lite/interfaces/wifiservice",
+        "//vendor/hisi/hi3861/hi3861/third_party/lwip_sack/include",
+        "//device/hisilicon/hispark_pegasus/sdk_liteos/components/histreaming/src",
+    ]
+    deps = [ "ssd1306:oled_ssd1306" ]
+}

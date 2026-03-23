@@ -23,6 +23,8 @@ lite_component("app") {
         #"23001010613_lsl_LiSonglun_ledblink:23001010613_lsl_LiSonglun_ledblink",
         #"23001010613_lsl_LiSonglun_pedestrian:23001010613_lsl_LiSonglun_pedestrian",
         #"23001010613_lsl_LiSonglun_selfcheck:23001010613_lsl_LiSonglun_selfcheck",
-        "23001010613_lsl_i2coled_en:i2coled",
+        #"23001010613_lsl_i2coled_en:i2coled",
+        #"23001010613_lsl_i2cOled_cn:i2cOled_cn",
+        "23001010613_lsl_i2cOled_img:i2cOled_img",
     ]
 }
