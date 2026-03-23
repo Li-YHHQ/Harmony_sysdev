@@ -289,6 +289,114 @@ IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_11, IOT_GPIO_VALUE1);
 
 ---
 
+### 7. I2C OLED 英文显示 — `23001010613_lsl_i2coled_en`
+
+**目录**：`23001010613_lsl_i2coled_en/`
+
+**实验目的**：学习 I2C 总线协议与 SSD1306 OLED 显示屏的初始化及驱动使用，在屏幕上显示英文字符串。
+
+**实验内容**：
+- 初始化 GPIO_13（SDA）、GPIO_14（SCL）为 I2C0 功能，并启用内部上拉
+- 以 400 kHz 波特率初始化 I2C 总线
+- 初始化 SSD1306 OLED 芯片，清屏后在坐标 (0, 32) 处显示 `Hello OpenHarmony!`
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `23001010613_lsl_i2coled.c` | 主程序，I2C 初始化与 OLED 英文字符串显示 |
+| `ssd1306/` | SSD1306 OLED 驱动库 |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+hi_i2c_init(HI_I2C_IDX_0, OLED_I2C_BAUDRATE);  // 初始化 I2C，400kHz
+ssd1306_Init();
+ssd1306_Fill(Black);
+ssd1306_SetCursor(0, 32);
+ssd1306_DrawString("Hello OpenHarmony!", Font_7x10, White);
+ssd1306_UpdateScreen();
+```
+
+**硬件连接**：OLED SDA 接 GPIO_13，SCL 接 GPIO_14，VCC 接 3.3V，GND 接地。
+
+---
+
+### 8. I2C OLED 汉字显示 — `23001010613_lsl_i2cOled_cn`
+
+**目录**：`23001010613_lsl_i2cOled_cn/`
+
+**实验目的**：在 SSD1306 OLED 上同时显示英文与中文字符，掌握自定义汉字字库的使用方法。
+
+**实验内容**：
+- 初始化 I2C0（GPIO_13/GPIO_14），400 kHz
+- 第一行显示英文 `Li Songlun`（Font_7x10）
+- 第二行使用 16×16 像素汉字字库依次显示「李」「松」「伦」三个汉字
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `23001010613_lsl_i2cOled_cn.c` | 主程序，英汉混排显示逻辑 |
+| `ssd1306/` | SSD1306 驱动库（含汉字字库支持） |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+ssd1306_SetCursor(0, 0);
+ssd1306_DrawString("Li Songlun", Font_7x10, White);   // 英文
+
+ssd1306_SetCursor(0, 20);
+ssd1306_DrawChinese(0, Font_16x16, White);  // 李
+ssd1306_DrawChinese(1, Font_16x16, White);  // 松
+ssd1306_DrawChinese(2, Font_16x16, White);  // 伦
+
+ssd1306_UpdateScreen();
+```
+
+**硬件连接**：OLED SDA 接 GPIO_13，SCL 接 GPIO_14，VCC 接 3.3V，GND 接地。
+
+---
+
+### 9. I2C OLED 图像显示 — `23001010613_lsl_i2cOled_img`
+
+**目录**：`23001010613_lsl_i2cOled_img/`
+
+**实验目的**：掌握在 SSD1306 OLED 上渲染位图图像的方法，实现图文混排显示效果。
+
+**实验内容**：
+- 初始化 I2C0（GPIO_13/GPIO_14），400 kHz
+- 上半部分：居中显示 64×30 像素的华为 Logo 位图（x=32, y=0）
+- 中间：显示英文姓名 `Li Songlun`（x=20, y=36）
+- 下方：显示汉字「李松伦」（Font_16x16，x=16, y=48）
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `23001010613_lsl_i2cOled_img.c` | 主程序，图像与文字混排显示逻辑 |
+| `ssd1306/` | SSD1306 驱动库（含 `DrawImage` 图像渲染接口） |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+ssd1306_DrawImage(gImage_logo, 32, 0, 64, 30);  // 华为 Logo 居中
+
+ssd1306_SetCursor(20, 36);
+ssd1306_DrawString("Li Songlun", Font_7x10, White);
+
+ssd1306_SetCursor(16, 48);
+ssd1306_DrawChinese(0, Font_16x16, White);  // 李
+ssd1306_DrawChinese(1, Font_16x16, White);  // 松
+ssd1306_DrawChinese(2, Font_16x16, White);  // 伦
+
+ssd1306_UpdateScreen();
+```
+
+**硬件连接**：OLED SDA 接 GPIO_13，SCL 接 GPIO_14，VCC 接 3.3V，GND 接地。
+
+---
+
 ## 工程构建说明
 
 根目录 `BUILD.gn` 用于选择当前激活的实验项目，取消对应行的注释即可切换：
@@ -301,7 +409,10 @@ lite_component("app") {
         # "23001010613_lsl_LiSonglun_blueled_blink:23001010613_lsl_LiSonglun_blueled_blink",
         # "23001010613_lsl_LiSonglun_ledblink:23001010613_lsl_LiSonglun_ledblink",
         # "23001010613_lsl_LiSonglun_pedestrian:23001010613_lsl_LiSonglun_pedestrian",
-        "23001010613_lsl_LiSonglun_selfcheck:23001010613_lsl_LiSonglun_selfcheck",
+        # "23001010613_lsl_LiSonglun_selfcheck:23001010613_lsl_LiSonglun_selfcheck",
+        # "23001010613_lsl_i2coled_en:i2coled",
+        # "23001010613_lsl_i2cOled_cn:i2cOled_cn",
+        "23001010613_lsl_i2cOled_img:i2cOled_img",
     ]
 }
 ```
