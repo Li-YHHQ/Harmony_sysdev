@@ -397,6 +397,62 @@ ssd1306_UpdateScreen();
 
 ---
 
+### 10. 红绿灯交通场景 — `23001010613_lsl_ledblink_i2coled`
+
+**目录**：`23001010613_lsl_ledblink_i2coled/`
+
+**实验目的**：综合运用 GPIO LED 控制与 I2C OLED 显示，实现红绿灯状态与 OLED 汉字提示的联动，模拟真实交通场景。
+
+**实验内容**：
+- 红灯（GPIO_10）与绿灯（GPIO_11）交替亮灭，每次持续 3 s，循环 10 次
+- 每次切换时同步刷新 OLED 屏幕：
+  - 顶部显示学号 `23001010613`
+  - 左侧显示「红灯亮/灭」「绿灯亮/灭」汉字状态（Font_16x16）
+  - 右下角显示爱心图标（32×32 位图）
+- 循环结束后双灯熄灭，OLED 清屏
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `23001010613_lsl_ledblink_i2coled.c` | 主程序，LED 与 OLED 联动控制逻辑 |
+| `ssd1306/` | SSD1306 驱动库（含交通场景汉字字库及爱心位图） |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+for (int i = 0; i < 10; i++) {
+    // 红灯亮，绿灯灭
+    IoTGpioSetOutputVal(GPIO_RED,   IOT_GPIO_VALUE1);
+    IoTGpioSetOutputVal(GPIO_GREEN, IOT_GPIO_VALUE0);
+    oled_show_state(0);   // OLED: 红灯亮 / 绿灯灭
+    osDelay(300);         // 3 秒
+
+    // 绿灯亮，红灯灭
+    IoTGpioSetOutputVal(GPIO_RED,   IOT_GPIO_VALUE0);
+    IoTGpioSetOutputVal(GPIO_GREEN, IOT_GPIO_VALUE1);
+    oled_show_state(1);   // OLED: 红灯灭 / 绿灯亮
+    osDelay(300);         // 3 秒
+}
+// 全灭并清屏
+oled_show_state(2);
+ssd1306_Fill(Black);
+ssd1306_UpdateScreen();
+```
+
+**OLED 显示布局**：
+
+| 区域 | 内容 |
+|------|------|
+| 顶部 (y=0) | 学号 `23001010613`（Font_7x10） |
+| 左侧 (y=24) | 「红灯亮」或「红灯灭」（Font_16x16） |
+| 左侧 (y=42) | 「绿灯亮」或「绿灯灭」（Font_16x16） |
+| 右下角 (x=96, y=32) | 爱心图标（32×32 位图） |
+
+**硬件连接**：红灯接 GPIO_10，绿灯接 GPIO_11，负极接 GND；OLED SDA 接 GPIO_13，SCL 接 GPIO_14，VCC 接 3.3V。
+
+---
+
 ## 工程构建说明
 
 根目录 `BUILD.gn` 用于选择当前激活的实验项目，取消对应行的注释即可切换：
@@ -412,7 +468,8 @@ lite_component("app") {
         # "23001010613_lsl_LiSonglun_selfcheck:23001010613_lsl_LiSonglun_selfcheck",
         # "23001010613_lsl_i2coled_en:i2coled",
         # "23001010613_lsl_i2cOled_cn:i2cOled_cn",
-        "23001010613_lsl_i2cOled_img:i2cOled_img",
+        # "23001010613_lsl_i2cOled_img:i2cOled_img",
+        "23001010613_lsl_ledblink_i2coled:ledblink_i2coled",
     ]
 }
 ```
