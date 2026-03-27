@@ -1,0 +1,16 @@
+static_library("demo_key_gpio") {
+    sources = [
+        "entry.c",
+        "hal_iot_gpio_ex.c",
+        "key.c",
+    ]
+    include_dirs = [
+        "./",
+        "//utils/native/lite/include",
+        "//kernel/liteos_m/kal/cmsis",
+        "//base/iot_hardware/peripheral/interfaces/kits",
+        "//foundation/communication/wifi_lite/interfaces/wifiservice",
+        "//vendor/hisi/hi3861/hi3861/third_party/lwip_sack/include",
+        "//device/hisilicon/hispark_pegasus/sdk_liteos/components/histreaming/src",
+    ]
+}
