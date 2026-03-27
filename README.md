@@ -453,6 +453,61 @@ ssd1306_UpdateScreen();
 
 ---
 
+### 11. 按键检测 — `23001010613_lsl_demo_key_gpio`
+
+**目录**：`23001010613_lsl_demo_key_gpio/`
+
+**实验目的**：掌握 GPIO 输入模式与按键消抖的实现方法，通过检测短按/长按事件控制 LED 灯状态。
+
+**实验内容**：
+- GPIO_5 配置为输入模式并启用内部上拉，作为按键输入
+- GPIO_9 配置为输出模式，控制 LED
+- **短按**（按下时长 < 3 s）：切换 LED 亮/灭状态
+- **长按**（按下时长 ≥ 3 s）：LED 快速闪烁 3 次后恢复原状态
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `entry.c` | 主程序，任务入口，LED 控制与按键事件响应 |
+| `key.c` | 按键驱动，含消抖与短按/长按识别逻辑 |
+| `key.h` | 按键驱动头文件，定义按键 GPIO 及事件常量 |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+// key.c — 短按/长按识别
+if ((val == 0) && (is_pressed == RELEASED)) {
+    osDelay(1);  // 消抖
+    IoTGpioGetInputVal(KEY_GPIO, &val);
+    if (val == 0) {
+        is_pressed = PRESSED;
+        keyPressTime = osKernelGetTickCount();
+    }
+} else if ((val == 1) && (is_pressed == PRESSED)) {
+    is_pressed = RELEASED;
+    if ((osKernelGetTickCount() - keyPressTime) >= 300) {
+        return KEY_PRESSLONG_kernel;  // 长按
+    }
+    return KEY_PRESS_kernel;          // 短按
+}
+
+// entry.c — 事件响应
+if (key_val == KEY_PRESS_kernel) {
+    led_state = !led_state;           // 短按切换
+    IoTGpioSetOutputVal(LED_GPIO, led_state ? IOT_GPIO_VALUE1 : IOT_GPIO_VALUE0);
+} else if (key_val == KEY_PRESSLONG_kernel) {
+    for (int i = 0; i < 3; i++) {    // 长按闪烁 3 次
+        IoTGpioSetOutputVal(LED_GPIO, IOT_GPIO_VALUE1); osDelay(10);
+        IoTGpioSetOutputVal(LED_GPIO, IOT_GPIO_VALUE0); osDelay(10);
+    }
+}
+```
+
+**硬件连接**：按键一端接 GPIO_5，另一端接 GND；LED 正极接 GPIO_9，负极接 GND。
+
+---
+
 ## 工程构建说明
 
 根目录 `BUILD.gn` 用于选择当前激活的实验项目，取消对应行的注释即可切换：
@@ -469,7 +524,8 @@ lite_component("app") {
         # "23001010613_lsl_i2coled_en:i2coled",
         # "23001010613_lsl_i2cOled_cn:i2cOled_cn",
         # "23001010613_lsl_i2cOled_img:i2cOled_img",
-        "23001010613_lsl_ledblink_i2coled:ledblink_i2coled",
+        # "23001010613_lsl_ledblink_i2coled:ledblink_i2coled",
+        "23001010613_lsl_demo_key_gpio:demo_key_gpio",
     ]
 }
 ```
