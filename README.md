@@ -508,6 +508,103 @@ if (key_val == KEY_PRESS_kernel) {
 
 ---
 
+### 12. ADC 按键检测 — `23001010613_lsl_key_adc`
+
+**目录**：`23001010613_lsl_key_adc/`
+
+**实验目的**：掌握 ADC（模数转换）按键的读取方式，通过采集 ADC2 通道电压值区分不同按键，并控制 LED 灯状态。
+
+**实验内容**：
+- 通过 `hi_adc_read()` 读取 ADC_CHANNEL_2 的采样值，按电压范围区分三路按键：
+  - **Key0**（ADC 5～227）：核心板自带按键，短按/长按打印日志
+  - **S1**（ADC 228～454）：短按点亮 LED，长按关闭 LED
+  - **S2**（ADC 455～681）：短按进入 LED 闪烁模式，长按关闭 LED
+- LED（GPIO_9，低电平有效）支持三种状态：常亮、常灭、500 ms 周期闪烁
+
+**ADC 按键电压范围**：
+
+| 按键 | ADC 采样值范围 | 短按返回值 | 长按返回值 |
+|------|--------------|-----------|-----------|
+| Key0 | 5 ～ 227 | `KEY_PRESS_kernel`(1) | `KEY_PRESSLONG_kernel`(2) |
+| S1   | 228 ～ 454 | `KEY1_PRESS`(3) | `KEY1_PRESSLONG`(4) |
+| S2   | 455 ～ 681 | `KEY2_PRESS`(5) | `KEY2_PRESSLONG`(6) |
+| 无按键 | > 682 | — | — |
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `entry.c` | 主程序，LED 状态机与按键事件响应 |
+| `adckey.c` | ADC 按键驱动，三路按键读取与短/长按识别 |
+| `adckey.h` | ADC 按键头文件，定义通道号及事件常量 |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+// S1 短按点亮，长按关闭
+key_val = readAdCKey1();
+if (key_val == KEY1_PRESS)     ledState = LED_STATE_ON;
+else if (key_val == KEY1_PRESSLONG) ledState = LED_STATE_OFF;
+
+// S2 短按闪烁，长按关闭
+key_val = readAdCKey2();
+if (key_val == KEY2_PRESS)     ledState = LED_STATE_BLINK;
+else if (key_val == KEY2_PRESSLONG) ledState = LED_STATE_OFF;
+```
+
+**硬件连接**：ADC 按键模块信号端接 GPIO_5（ADC_CHANNEL_2）；LED 正极接 GPIO_9，负极接 GND。
+
+---
+
+### 13. ADC 按键切换 OLED 显示（进阶）— `23001010613_lsl_adckey_oled`
+
+**目录**：`23001010613_lsl_adckey_oled/`
+
+**实验目的**：综合运用 ADC 按键、I2C OLED、多线程，实现按键翻页切换四个不同显示页面，并实时采集展示 ADC 电压值。
+
+**实验内容**：
+- 双线程架构：**按键线程**处理翻页，**ADC 采集线程**（100 ms 刷新）实时更新电压数据
+- S1 短按向后翻页，S2 短按向前翻页，共 4 个页面循环切换：
+
+| 页面 | 内容 |
+|------|------|
+| 1 | 学号 `23001010613`、英文名 `Li Songlun`、汉字「李松伦」 |
+| 2 | 爱心图标（居中）+ 学号 |
+| 3 | `Hello HarmonyOS!` / `Li Songlun` / `NEUSOFT 2024` |
+| 4 | ADC 原始值 + 实时电压（voltage = ADC × 1.8 / 4096） |
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `entry.c` | 主程序，OLED 初始化、四页显示函数、双线程入口 |
+| `adckey.c` | ADC 按键驱动（同实验12） |
+| `adckey.h` | ADC 按键头文件 |
+| `ssd1306/` | SSD1306 OLED 驱动库 |
+| `BUILD.gn` | GN 构建配置文件 |
+
+**核心代码片段**：
+```c
+// 按键线程：S1 向后翻页，S2 向前翻页
+if (readAdCKey1() == KEY1_PRESS) {
+    if (++g_flag_show == 5) g_flag_show = 1;
+    oled_control(g_flag_show);
+}
+if (readAdCKey2() == KEY2_PRESS) {
+    if (--g_flag_show == 0) g_flag_show = 4;
+    oled_control(g_flag_show);
+}
+
+// ADC 采集线程：实时计算电压并刷新第4页
+hi_adc_read(KEY_ADC_CHANNEL, &data, ...);
+g_voltage = (float)data * 1.8f / 4096.0f;
+if (g_flag_show == 4) oled_showADC();
+```
+
+**硬件连接**：ADC 按键模块信号端接 GPIO_5；OLED SDA 接 GPIO_13，SCL 接 GPIO_14，VCC 接 3.3V，GND 接地。
+
+---
+
 ## 工程构建说明
 
 根目录 `BUILD.gn` 用于选择当前激活的实验项目，取消对应行的注释即可切换：
@@ -525,7 +622,9 @@ lite_component("app") {
         # "23001010613_lsl_i2cOled_cn:i2cOled_cn",
         # "23001010613_lsl_i2cOled_img:i2cOled_img",
         # "23001010613_lsl_ledblink_i2coled:ledblink_i2coled",
-        "23001010613_lsl_demo_key_gpio:demo_key_gpio",
+        # "23001010613_lsl_demo_key_gpio:demo_key_gpio",
+        # "23001010613_lsl_key_adc:demo_key_adc",
+        "23001010613_lsl_adckey_oled:adckey_oled",
     ]
 }
 ```
