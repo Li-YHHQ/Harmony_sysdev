@@ -1,0 +1,19 @@
+static_library("adckey_oled") {
+    sources = [
+        "entry.c",
+        "adckey.c",
+        "hal_iot_gpio_ex.c",
+    ]
+    include_dirs = [
+        "./",
+        "./ssd1306",
+        "//utils/native/lite/include",
+        "//kernel/liteos_m/kal/cmsis",
+        "//base/iot_hardware/peripheral/interfaces/kits",
+        "//foundation/communication/wifi_lite/interfaces/wifiservice",
+        "//vendor/hisi/hi3861/hi3861/third_party/lwip_sack/include",
+        "//device/hisilicon/hispark_pegasus/sdk_liteos/components/histreaming/src",
+        "//device/hisilicon/hispark_pegasus/sdk_liteos/include",
+    ]
+    deps = [ "ssd1306:oled_ssd1306" ]
+}

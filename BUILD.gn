@@ -27,6 +27,8 @@ lite_component("app") {
         #"23001010613_lsl_i2cOled_cn:i2cOled_cn",
         #"23001010613_lsl_i2cOled_img:i2cOled_img",
         #"23001010613_lsl_ledblink_i2coled:ledblink_i2coled",
-        "23001010613_lsl_demo_key_gpio:demo_key_gpio",
+        #"23001010613_lsl_demo_key_gpio:demo_key_gpio",
+        #"23001010613_lsl_key_adc:demo_key_adc",
+        "23001010613_lsl_adckey_oled:adckey_oled",
     ]
 }
