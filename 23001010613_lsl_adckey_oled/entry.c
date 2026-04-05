@@ -22,6 +22,8 @@ static float g_voltage = 0.0f;
 
 /* 当前显示页面：1=学号姓名，2=图片，3=自定义，4=ADC电压 */
 static int g_flag_show = 1;
+static int g_key0_count = 0;
+static int g_led_state = 0;
 
 /* ===== OLED 初始化 ===== */
 void i2c_oled_init(void)
@@ -35,6 +37,15 @@ void i2c_oled_init(void)
     IoTI2cInit(0, OLED_I2C_BAUDRATE);
     usleep(20 * 1000);
     ssd1306_Init();
+}
+
+/* ===== LED 初始化 ===== */
+void led_init(void)
+{
+    IoTGpioInit(IOT_IO_NAME_GPIO_9);
+    IoSetFunc(IOT_IO_NAME_GPIO_9, IOT_IO_FUNC_GPIO_9_GPIO);
+    IoTGpioSetDir(IOT_IO_NAME_GPIO_9, IOT_GPIO_DIR_OUT);
+    IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_9, IOT_GPIO_VALUE1);
 }
 
 /* ===== 第1屏：学号姓名 ===== */
@@ -98,6 +109,40 @@ void oled_showADC(void)
     osDelay(1);
 }
 
+/* ===== 第5屏：key0按键计数 ===== */
+void oled_showKeyCount(void)
+{
+    char buf[32];
+    ssd1306_Fill(Black);
+    ssd1306_SetCursor(0, 0);
+    ssd1306_DrawString("Key0 Counter", Font_7x10, White);
+    ssd1306_SetCursor(0, 20);
+    snprintf(buf, sizeof(buf), "Count: %d", g_key0_count);
+    ssd1306_DrawString(buf, Font_7x10, White);
+    ssd1306_SetCursor(0, 40);
+    ssd1306_DrawString("Press key0 +1", Font_7x10, White);
+    ssd1306_UpdateScreen();
+    osDelay(1);
+}
+
+/* ===== 第6屏：LED状态显示 ===== */
+void oled_showLedState(void)
+{
+    ssd1306_Fill(Black);
+    ssd1306_SetCursor(0, 0);
+    ssd1306_DrawString("LED Control", Font_7x10, White);
+    ssd1306_SetCursor(0, 20);
+    if (g_led_state == 0) {
+        ssd1306_DrawString("LED: OFF", Font_7x10, White);
+    } else {
+        ssd1306_DrawString("LED: ON", Font_7x10, White);
+    }
+    ssd1306_SetCursor(0, 40);
+    ssd1306_DrawString("Press key0 toggle", Font_7x10, White);
+    ssd1306_UpdateScreen();
+    osDelay(1);
+}
+
 /* ===== 切屏控制 ===== */
 void oled_control(int flag)
 {
@@ -105,6 +150,8 @@ void oled_control(int flag)
     else if (flag == 2) oled_showImage();
     else if (flag == 3) oled_showSelfDef();
     else if (flag == 4) oled_showADC();
+    else if (flag == 5) oled_showKeyCount();
+    else if (flag == 6) oled_showLedState();
 }
 
 /* ===== 线程1：按键切屏 ===== */
@@ -117,7 +164,7 @@ static void handler_Key_Task(void *arg)
         key_val = readAdCKey1();
         if (key_val == KEY1_PRESS) {
             g_flag_show++;
-            if (g_flag_show == 5) g_flag_show = 1;
+            if (g_flag_show == 7) g_flag_show = 1;
             printf("key1：向后翻页，当前页面=%d\r\n", g_flag_show);
             oled_control(g_flag_show);
         }
@@ -125,9 +172,24 @@ static void handler_Key_Task(void *arg)
         key_val = readAdCKey2();
         if (key_val == KEY2_PRESS) {
             g_flag_show--;
-            if (g_flag_show == 0) g_flag_show = 4;
+            if (g_flag_show == 0) g_flag_show = 6;
             printf("key2：向前翻页，当前页面=%d\r\n", g_flag_show);
             oled_control(g_flag_show);
+        }
+
+        key_val = readAdCKey0();
+        if (key_val == KEY_PRESS_kernel) {
+            if (g_flag_show == 5) {
+                g_key0_count++;
+                printf("key0 press, count=%d\r\n", g_key0_count);
+                oled_showKeyCount();
+            } else if (g_flag_show == 6) {
+                g_led_state = !g_led_state;
+                IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_9,
+                    g_led_state ? IOT_GPIO_VALUE0 : IOT_GPIO_VALUE1);
+                printf("key0 press, LED=%s\r\n", g_led_state ? "ON" : "OFF");
+                oled_showLedState();
+            }
         }
 
         TaskMsleep(50);
@@ -158,6 +220,7 @@ static void handler_readADC_task(void *arg)
 void device_init(void)
 {
     i2c_oled_init();
+    led_init();
 }
 
 /* ===== 入口函数 ===== */
