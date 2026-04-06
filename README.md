@@ -560,24 +560,26 @@ else if (key_val == KEY2_PRESSLONG) ledState = LED_STATE_OFF;
 
 **目录**：`23001010613_lsl_adckey_oled/`
 
-**实验目的**：综合运用 ADC 按键、I2C OLED、多线程，实现按键翻页切换四个不同显示页面，并实时采集展示 ADC 电压值。
+**实验目的**：综合运用 ADC 按键、I2C OLED、多线程，实现按键翻页切换六个不同显示页面，并实时采集展示 ADC 电压值，同时支持 Key0 在特定页面进行计数和 LED 控制。
 
 **实验内容**：
-- 双线程架构：**按键线程**处理翻页，**ADC 采集线程**（100 ms 刷新）实时更新电压数据
-- S1 短按向后翻页，S2 短按向前翻页，共 4 个页面循环切换：
+- 双线程架构：**按键线程**处理翻页与 Key0 交互，**ADC 采集线程**（100 ms 刷新）实时更新电压数据
+- S1 短按向后翻页，S2 短按向前翻页，共 **6 个页面**循环切换：
 
-| 页面 | 内容 |
-|------|------|
-| 1 | 学号 `23001010613`、英文名 `Li Songlun`、汉字「李松伦」 |
-| 2 | 爱心图标（居中）+ 学号 |
-| 3 | `Hello HarmonyOS!` / `Li Songlun` / `NEUSOFT 2024` |
-| 4 | ADC 原始值 + 实时电压（voltage = ADC × 1.8 / 4096） |
+| 页面 | 内容 | Key0 交互 |
+|------|------|-----------|
+| 1 | 学号 `23001010613`、英文名 `Li Songlun`、汉字「李松伦」 | — |
+| 2 | 爱心图标（居中）+ 学号 | — |
+| 3 | `Hello HarmonyOS!` / `Li Songlun` / `NEUSOFT 2024` | — |
+| 4 | ADC 原始值 + 实时电压（V = ADC × 1.8 / 4096） | — |
+| 5 | Key0 按键计数，每次短按计数 +1 | 计数 +1 并刷新显示 |
+| 6 | LED 状态显示（ON / OFF） | 切换 GPIO_9 LED |
 
 **关键文件**：
 
 | 文件 | 说明 |
 |------|------|
-| `entry.c` | 主程序，OLED 初始化、四页显示函数、双线程入口 |
+| `entry.c` | 主程序，OLED 初始化、六页显示函数、双线程入口 |
 | `adckey.c` | ADC 按键驱动（同实验12） |
 | `adckey.h` | ADC 按键头文件 |
 | `ssd1306/` | SSD1306 OLED 驱动库 |
@@ -585,20 +587,26 @@ else if (key_val == KEY2_PRESSLONG) ledState = LED_STATE_OFF;
 
 **核心代码片段**：
 ```c
-// 按键线程：S1 向后翻页，S2 向前翻页
+// S1 向后翻页（1→6 循环），S2 向前翻页（6→1 循环）
 if (readAdCKey1() == KEY1_PRESS) {
-    if (++g_flag_show == 5) g_flag_show = 1;
+    if (++g_flag_show == 7) g_flag_show = 1;
     oled_control(g_flag_show);
 }
 if (readAdCKey2() == KEY2_PRESS) {
-    if (--g_flag_show == 0) g_flag_show = 4;
+    if (--g_flag_show == 0) g_flag_show = 6;
     oled_control(g_flag_show);
 }
 
-// ADC 采集线程：实时计算电压并刷新第4页
-hi_adc_read(KEY_ADC_CHANNEL, &data, ...);
-g_voltage = (float)data * 1.8f / 4096.0f;
-if (g_flag_show == 4) oled_showADC();
+// Key0：第5页计数，第6页控制 LED
+if (readAdCKey0() == KEY_PRESS_kernel) {
+    if (g_flag_show == 5) { g_key0_count++; oled_showKeyCount(); }
+    else if (g_flag_show == 6) {
+        g_led_state = !g_led_state;
+        IoTGpioSetOutputVal(IOT_IO_NAME_GPIO_9,
+            g_led_state ? IOT_GPIO_VALUE0 : IOT_GPIO_VALUE1);
+        oled_showLedState();
+    }
+}
 ```
 
 **硬件连接**：ADC 按键模块信号端接 GPIO_5；OLED SDA 接 GPIO_13，SCL 接 GPIO_14，VCC 接 3.3V，GND 接地。
