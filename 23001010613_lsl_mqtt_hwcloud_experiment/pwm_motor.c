@@ -121,6 +121,11 @@ void pwm_motor_init(MotorDir dir)
 // ==================== 启动电机 ====================
 void pwm_motor_start(MotorDir dir, int8_t duty)
 {
+    // 占空比为0或负数时不启动电机
+    if (duty <= 0) return;
+    // 占空比超过100时钳制到100，防止硬件异常
+    if (duty > 100) duty = 100;
+
     // 每次启动都按目标方向重新配置，避免切向后残留旧复用状态
     pwm_motor_init(dir);
 

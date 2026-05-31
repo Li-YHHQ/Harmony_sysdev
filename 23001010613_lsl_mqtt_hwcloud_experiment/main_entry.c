@@ -69,6 +69,11 @@ volatile int g_encoder_pulse_delta = 0; /* 增量脉冲数（每100ms清零） *
 volatile int g_encoder_dir = 0;         /* 当前方向：0=CW，1=CCW */
 float g_speed = 0.0f;                   /* 当前车速(m/s) */
 
+/* 速度历史环形缓冲区（供仪表盘折线图使用） */
+#define SPEED_HISTORY_SIZE 24
+float g_speed_history[SPEED_HISTORY_SIZE] = {0};
+int   g_speed_history_idx = 0;
+
 /* 华为云命令记录（第6屏显示） */
 char g_cloud_cmd_line1[32] = "waiting...";
 char g_cloud_cmd_line2[32] = "";
@@ -313,86 +318,135 @@ static void oled_showMotor(void)
 
     ssd1306_Fill(Black);
 
+    /* ====== 上半区域：半圆仪表盘（圆心(64,32)，半径24） ====== */
+
     /* ——— 步骤1：绘制半圆弧（angle=0°~180°，步长2°） ——— */
     for (int angle = 0; angle <= 180; angle += 2) {
-        int x = 64 + 30 * my_cos_1000(angle) / 1000;
-        int y = 38 - 30 * (int)sin_lut[angle]  / 1000;
+        int x = 64 + 24 * my_cos_1000(angle) / 1000;
+        int y = 32 - 24 * (int)sin_lut[angle]  / 1000;
         ssd1306_DrawPixel((uint8_t)x, (uint8_t)y, White);
     }
 
-    /* ——— 步骤2：危险区（duty>=80 对应 angle=0°~36°，三层加粗） ——— */
+    /* ——— 步骤2：危险区（速度>=2.4m/s 对应 angle=0°~36°，三层加粗） ——— */
     for (int angle = 0; angle <= 36; angle += 2) {
-        for (int r = 28; r <= 30; r++) {
+        for (int r = 22; r <= 24; r++) {
             int x = 64 + r * my_cos_1000(angle) / 1000;
-            int y = 38 - r * (int)sin_lut[angle]  / 1000;
+            int y = 32 - r * (int)sin_lut[angle]  / 1000;
             ssd1306_DrawPixel((uint8_t)x, (uint8_t)y, White);
         }
     }
 
-    /* ——— 步骤3：5个主刻度线（0/25/50/75/100 → 180/135/90/45/0°） ——— */
+    /* ——— 步骤3：5个主刻度线（角度180/135/90/45/0°，半径20→24） ——— */
     {
         int tick_angles[5] = {180, 135, 90, 45, 0};
         for (int i = 0; i < 5; i++) {
             int a  = tick_angles[i];
-            int x1 = 64 + 26 * my_cos_1000(a) / 1000;
-            int y1 = 38 - 26 * (int)sin_lut[a] / 1000;
-            int x2 = 64 + 30 * my_cos_1000(a) / 1000;
-            int y2 = 38 - 30 * (int)sin_lut[a] / 1000;
+            int x1 = 64 + 20 * my_cos_1000(a) / 1000;
+            int y1 = 32 - 20 * (int)sin_lut[a] / 1000;
+            int x2 = 64 + 24 * my_cos_1000(a) / 1000;
+            int y2 = 32 - 24 * (int)sin_lut[a] / 1000;
             ssd1306_DrawLine((uint8_t)x1, (uint8_t)y1,
                              (uint8_t)x2, (uint8_t)y2, White);
         }
     }
 
-    /* ——— 步骤4：指针（圆心→r=24，角度由速度决定） ——— */
+    /* ——— 步骤4：指针（圆心→r=20，角度由速度决定） ——— */
     {
-        // 速度量程 0~3.0 m/s，超过3.0则钳制到180°（最右）
+        /* 速度量程 0~1.0 m/s，超过1.0则钳制到最右端（0°） */
         float speed_clamped = g_speed;
-        if (speed_clamped > 3.0f) speed_clamped = 3.0f;
-        int angle = (int)(180.0f - speed_clamped / 3.0f * 180.0f);
-        int x_end = 64 + 24 * my_cos_1000(angle) / 1000;
-        int y_end = 38 - 24 * (int)sin_lut[angle] / 1000;
-        ssd1306_DrawLine(64, 38, (uint8_t)x_end, (uint8_t)y_end, White);
+        if (speed_clamped > 1.0f) speed_clamped = 1.0f;
+        int angle = (int)(180.0f - speed_clamped / 1.0f * 180.0f);
+        int x_end = 64 + 20 * my_cos_1000(angle) / 1000;
+        int y_end = 32 - 20 * (int)sin_lut[angle] / 1000;
+        ssd1306_DrawLine(64, 32, (uint8_t)x_end, (uint8_t)y_end, White);
     }
 
     /* ——— 步骤5：圆心点（3×3小方块） ——— */
     for (int dx = -1; dx <= 1; dx++) {
         for (int dy = -1; dy <= 1; dy++) {
-            ssd1306_DrawPixel((uint8_t)(64 + dx), (uint8_t)(38 + dy), White);
+            ssd1306_DrawPixel((uint8_t)(64 + dx), (uint8_t)(32 + dy), White);
         }
     }
 
-    /* ——— 步骤6：刻度标签 ——— */
-    ssd1306_SetCursor(2, 30);
+    /* ——— 步骤6：刻度标签（适配新圆心位置） ——— */
+    ssd1306_SetCursor(2, 24);
     ssd1306_DrawString((char *)"0", Font_7x10, White);
 
-    ssd1306_SetCursor(52, 6);
-    ssd1306_DrawString((char *)"1.5", Font_7x10, White);
+    ssd1306_SetCursor(56, 4);
+    ssd1306_DrawString((char *)"0.5", Font_7x10, White);
 
-    ssd1306_SetCursor(105, 30);
-    ssd1306_DrawString((char *)"3.0", Font_7x10, White);
+    ssd1306_SetCursor(106, 24);
+    ssd1306_DrawString((char *)"1.0", Font_7x10, White);
 
-    /* ——— 下半部分：数字信息 ——— */
+    /* ——— 分隔线（y=36，横跨全宽，将表盘与数字区隔开） ——— */
+    ssd1306_DrawLine(0, 36, 127, 36, White);
 
-    /* y=44：速度 + 方向 */
-    if (g_motor_duty == 0) {
-        strncpy(buf, "Spd:-- Dir:--", sizeof(buf));
+    /* ====== 下半左侧（x=0~62）：速度数字信息 ====== */
+
+    /* y=40：当前速度，仅在完全静止时显示"--" */
+    if (g_speed < 0.01f && g_motor_duty == 0) {
+        strncpy(buf, "--.- m/s", sizeof(buf));
     } else {
-        const char *dir_str = (g_motor_dir == MOTOR_DIR_CW) ? "FWD" : "BWD";
-        snprintf(buf, sizeof(buf), "Spd:%.2fm/s %s", g_speed, dir_str);
+        snprintf(buf, sizeof(buf), "%.2f m/s", g_speed);
     }
-    ssd1306_SetCursor(0, 44);
+    ssd1306_SetCursor(0, 40);
     ssd1306_DrawString(buf, Font_7x10, White);
 
-    /* y=54：占空比 + 运行模式 */
+    /* y=50：运行模式 + 方向（有速度但duty==0时仍显示实际方向） */
     {
         const char *mode;
-        if (g_motor_duty == 0)       mode = "STOP";
-        else if (g_motor_duty < 50)  mode = "ECO";
-        else                         mode = "SPORT";
-        snprintf(buf, sizeof(buf), "Duty:%d%%  %s", (int)g_motor_duty, mode);
+        const char *dir_str;
+        if (g_motor_duty == 0 && g_speed < 0.01f) {
+            /* 完全静止 */
+            mode    = "STOP";
+            dir_str = "--";
+        } else if (g_motor_duty >= 80) {
+            mode    = "SPRT";
+            dir_str = (g_motor_dir == MOTOR_DIR_CW) ? "FWD" : "BWD";
+        } else if (g_motor_duty >= 50) {
+            mode    = "NRM";
+            dir_str = (g_motor_dir == MOTOR_DIR_CW) ? "FWD" : "BWD";
+        } else if (g_motor_duty > 0) {
+            mode    = "ECO";
+            dir_str = (g_motor_dir == MOTOR_DIR_CW) ? "FWD" : "BWD";
+        } else {
+            /* duty==0 但有速度（手动旋转） */
+            mode    = "STOP";
+            dir_str = (g_motor_dir == MOTOR_DIR_CW) ? "FWD" : "BWD";
+        }
+        snprintf(buf, sizeof(buf), "%s %s", mode, dir_str);
     }
-    ssd1306_SetCursor(0, 54);
+    ssd1306_SetCursor(0, 50);
     ssd1306_DrawString(buf, Font_7x10, White);
+
+    /* ====== 下半右侧（x=65~127）：速度历史折线图 ====== */
+
+    /* 左侧竖线作为折线图边框 */
+    ssd1306_DrawLine(65, 39, 65, 54, White);
+
+    /* 绘制折线：24个点，间距2px，最新数据在最右侧 */
+    {
+        int prev_x = 0, prev_y = 0;
+        for (int i = 0; i < SPEED_HISTORY_SIZE; i++) {
+            /* 从环形缓冲区按时间先后顺序（旧→新）取数据 */
+            int data_idx = (g_speed_history_idx - SPEED_HISTORY_SIZE + i
+                            + SPEED_HISTORY_SIZE) % SPEED_HISTORY_SIZE;
+            int x = 65 + i * 2;
+            float sv = g_speed_history[data_idx];
+            if (sv > 1.0f) sv = 1.0f;
+            /* y轴：速度0对应y=54（底部），速度1.0对应y=39（顶部） */
+            int y = 54 - (int)(sv / 1.0f * 15.0f);
+            if (y < 39) y = 39;
+            if (y > 54) y = 54;
+            /* 与前一点连线（i==0时无前驱，仅记录坐标） */
+            if (i > 0) {
+                ssd1306_DrawLine((uint8_t)prev_x, (uint8_t)prev_y,
+                                 (uint8_t)x,      (uint8_t)y, White);
+            }
+            prev_x = x;
+            prev_y = y;
+        }
+    }
 
     ssd1306_UpdateScreen();
 }
@@ -650,6 +704,9 @@ static void handler_oled_Task(void)
 {
     while (1) {
         osDelay(50); /* 500ms */
+        /* 每次OLED刷新时记录一次速度，与显示周期同步，避免折线图阶梯状 */
+        g_speed_history[g_speed_history_idx] = g_speed;
+        g_speed_history_idx = (g_speed_history_idx + 1) % SPEED_HISTORY_SIZE;
         refresh_screen();
     }
 }
@@ -666,12 +723,30 @@ static void handler_encoder_Task(void)
         int delta = g_encoder_pulse_delta;
         g_encoder_pulse_delta = 0;
 
-        /* 速度计算：v = 0.16 * delta / 0.1（m/s） */
+        /* 速度计算 + 5点滑动平均平滑处理 */
+        static float speed_buf[5]  = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}; /* 滑动窗口缓冲区 */
+        static int   speed_buf_idx = 0;                                /* 滑动窗口写指针 */
+
+        /* 异常值过滤：超过300脉冲/100ms视为干扰，跳过本次更新保持上次速度 */
+        if (delta > 300) {
+            g_encoder_pulse_delta = 0;
+            continue;
+        }
+
         if (delta == 0) {
+            /* 静止时直接清零整个窗口，不参与滑动平均，避免历史值拖慢归零 */
+            speed_buf[0] = speed_buf[1] = speed_buf[2] =
+            speed_buf[3] = speed_buf[4] = 0.0f;
+            speed_buf_idx = 0;
             g_speed = 0.0f;
         } else {
-            // 速度 = 车轮周长(0.16m) × 脉冲数 / 256 / 计算周期(0.1s)
-            g_speed = 0.16f * (float)delta / 256.0f / 0.1f;
+            /* 速度 = 车轮周长(0.16m) × 脉冲数 / 256 / 计算周期(0.1s) */
+            float raw_speed = 0.16f * (float)delta / 256.0f / 0.1f;
+            /* 写入滑动窗口，取5次平均，进一步平滑速度曲线 */
+            speed_buf[speed_buf_idx] = raw_speed;
+            speed_buf_idx = (speed_buf_idx + 1) % 5;
+            g_speed = (speed_buf[0] + speed_buf[1] + speed_buf[2] +
+                       speed_buf[3] + speed_buf[4]) / 5.0f;
         }
 
         printf("23001010613 encoder: delta=%d speed=%.2f m/s dir=%s\n",
